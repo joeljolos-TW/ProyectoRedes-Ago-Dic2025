@@ -1,5 +1,7 @@
 import socket
 import threading
+import signal
+import sys
 
 # Configuración del servidor
 HOST = '127.0.0.1' # localhost - solo acepta conexiones locales
@@ -21,6 +23,22 @@ server.listen()
 
 clients= []
 nicknames= []
+server_running = True
+
+def signal_handler(signum, frame):
+    global server_running
+    print("Cerrando el servidor...")
+    server_running = False
+
+    broadcast("El servidor se está cerrando.".encode('ascii'))
+    for client in clients:
+        client.close()
+    server.close()
+    print("Servidor cerrado.")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 def broadcast(message):
     """Envía un mensaje a todos los clientes conectados excepto al remitente."""
@@ -66,4 +84,10 @@ def receive():
         thread.start()
 
 print(f'Servidor escuchando en {HOST}:{PORT}')
-receive()
+try:
+    receive()
+except KeyboardInterrupt:
+    signal_handler(signal.SIGINT, None)
+except Exception as e:
+    print(f"Error del servidor: {e}")
+    signal_handler(signal.SIGTERM, None)
